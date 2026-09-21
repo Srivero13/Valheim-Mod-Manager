@@ -287,6 +287,16 @@ class Package:
             dest = Package.overrides[self.name]['dest']
         except:
             dest = 'BepInEx/plugins/' + self.name
+
+        destination_root = os.path.abspath(os.path.join('.cache', type))
+        target_root = os.path.abspath(os.path.join(destination_root, dest))
+        try:
+            if os.path.commonpath((destination_root, target_root)) != destination_root:
+                logging.warning('Refusing unsafe extraction destination for %s', self.name)
+                return
+        except ValueError:
+            logging.warning('Refusing unsafe extraction destination for %s', self.name)
+            return
         
         with zipfile.ZipFile('.cache/packages/' + package) as zip:
             logging.debug('Extracting ' + package + ' to ' + type + '/' + dest)
@@ -322,7 +332,14 @@ class Package:
                         filename = filename[len(check):]
 
                 if not (filename is None or filename == '' or filename.endswith('/')):
-                    filename = os.path.join('.cache/' + type + '/', dest, filename)
+                    filename = os.path.abspath(os.path.join(target_root, filename))
+                    try:
+                        if os.path.commonpath((target_root, filename)) != target_root:
+                            logging.warning('Skipping unsafe archive member %s', f)
+                            continue
+                    except ValueError:
+                        logging.warning('Skipping unsafe archive member %s', f)
+                        continue
                     if not os.path.exists(os.path.dirname(filename)):
                         os.makedirs(os.path.dirname(filename))
 
@@ -926,4 +943,3 @@ class ModPackages(object):
         
         cls.changed = {}
         cls.removed = []
-
